@@ -1,0 +1,6 @@
+matplotlib
+numpy
+psutil
+PyYAML
+requests
+tomli; python_version < "3.11"

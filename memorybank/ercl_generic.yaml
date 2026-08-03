@@ -1,0 +1,1632 @@
+version: dac-test-ercl-core-3.0.0
+status: 'test-informed development core ablation: task-generic HLS contracts only'
+sources:
+- public HLS benchmark, arXiv:2504.12268
+- KernelSkill, arXiv:2603.10085
+- ChatHLS, ACL 2026
+- AMD Vitis HLS UG1399 2024.2
+- 'AMD UG1399 2024.2 Pointer Limitations: https://docs.amd.com/r/2024.2-English/ug1399-vitis-hls/Pointer-Limitations'
+- 'AMD UG1399 2024.2 Unsupported C/C++: https://docs.amd.com/r/2024.2-English/ug1399-vitis-hls/Unsupported-C/C-Constructs'
+- 'AMD UG1399 2024.2 Dynamic Memory: https://docs.amd.com/r/2024.2-English/ug1399-vitis-hls/Dynamic-Memory-Usage'
+- 'AMD UG1399 2024.2 System Calls: https://docs.amd.com/r/2024.2-English/ug1399-vitis-hls/System-Calls'
+- Manual HLS expert knowledge and synthetic fixtures
+- 'AMD UG1399 2024.2 Data Types: https://docs.amd.com/r/2024.2-English/ug1399-vitis-hls/Data-Types'
+- 'AMD UG1399 2024.2 Undefined Behaviors: https://docs.amd.com/r/2024.2-English/ug1399-vitis-hls/Undefined-Behaviors'
+- 'AMD UG1399 2024.2 Arrays on the Interface: https://docs.amd.com/r/2024.2-English/ug1399-vitis-hls/Arrays-on-the-Interface'
+- 'Self-Refine, NeurIPS 2023: https://proceedings.neurips.cc/paper_files/paper/2023/file/91edff07232fb1b55a505a9e9f6c0ff3-Paper-Conference.pdf'
+- 'Reflexion, NeurIPS 2023: https://proceedings.nips.cc/paper_files/paper/2023/file/1b44b878bb782e6954cd888628510e90-Paper-Conference.pdf'
+- 'ExpeL, AAAI 2024: https://ojs.aaai.org/index.php/AAAI/article/download/29936/31635'
+- 'STARK trajectory-aware code repair, arXiv:2510.16996: https://arxiv.org/pdf/2510.16996'
+- public instruction-to-HLS benchmark public prompts and v11 generated-code/tool-log
+  audit; no testbench or reference implementation content
+- AMD UG1399 Vitis HLS arbitrary-precision, state, and interface guidance
+- Xilinx Vitis-HLS-Introductory-Examples synthesizable modeling patterns
+- Public instruction-to-HLS prompts and v11 generated-code/tool-log audit; no testbench
+  or reference implementation content
+rules:
+- rule_id: PARSE_STAGNATION_CLEANROOM
+  stage: parse
+  priority: 170
+  routing_channel: cleanroom_authorization
+  routing_status: active
+  routing_reason: Independent clean-room authorization; never competes for Diagnoser
+    top-1
+  match:
+    history_any:
+    - '"repeated_signature_count": [2-9]'
+    - '"no_progress_streak": [2-9]'
+    - '"current_duplicate_code": true'
+    - '"current_two_cycle": true'
+    - '"same_action_count": [2-9]'
+  diagnosis: The same output-contract failure has survived local repair; local editing
+    is stagnant.
+  allowed_actions:
+  - Regenerate once from the immutable original task using exactly one OUTPUT_CODE
+    element
+  forbidden_actions:
+  - Do not reuse the failed wrapper
+  - Do not read or request a reference kernel
+  must_hold_invariants:
+  - Header, testbench, top function, and task text remain immutable
+  confidence: medium
+  source: KernelSkill cyclic-repair analysis plus Reflexion; two-repeat threshold
+    is a frozen engineering choice
+  expected_stage_transition: The clean-room candidate should leave the repeated failure
+    basin without violating immutable interfaces
+  validation_required: &id001
+  - Run the complete Parse, C-sim compile/TB, and synthesis Reviewer on the single
+    produced candidate
+  evidence_tier: generic
+- rule_id: PARSE_XML_CONTRACT
+  stage: parse
+  priority: 150
+  match:
+    log_any:
+    - exactly one output_code
+    - invalid number of tags
+    - xml contract
+    - no output_code
+  diagnosis: The response violates the single OUTPUT_CODE XML contract.
+  allowed_actions:
+  - Emit exactly one OUTPUT_CODE opening and closing tag
+  - Place one complete implementation inside it
+  forbidden_actions:
+  - Do not emit Markdown fences, prose, a header, or a testbench
+  must_hold_invariants:
+  - The implementation is complete and the filename is a kernel .cpp basename
+  evidence_tier: generic
+  source: public evidence
+- rule_id: PARSE_FILENAME
+  stage: parse
+  priority: 145
+  match:
+    log_any:
+    - filename
+    - must be a kernel \.cpp
+    - must not contain a path
+    - _tb\.cpp
+  diagnosis: The XML filename is unsafe or does not identify the requested kernel
+    source.
+  allowed_actions:
+  - Use the exact expected kernel .cpp basename
+  forbidden_actions:
+  - Do not include a directory
+  - Do not name a testbench
+  must_hold_invariants:
+  - Exactly one kernel implementation is emitted
+  evidence_tier: generic
+  source: public evidence
+- rule_id: PARSE_INCOMPLETE_OR_MULTIPLE
+  stage: parse
+  priority: 140
+  match:
+    log_any:
+    - found [02-9]
+    - empty
+    - unterminated
+    - unexpected end
+  diagnosis: The answer is empty, truncated, or contains multiple generated files.
+  allowed_actions:
+  - Re-emit one complete source file including every required helper
+  forbidden_actions:
+  - Do not use placeholders or omit function bodies
+  must_hold_invariants:
+  - All required design functions are present
+  evidence_tier: generic
+  source: public evidence
+- rule_id: PARSE_GENERIC
+  stage: parse
+  priority: 1
+  match:
+    fallback: true
+  diagnosis: The response cannot be parsed as one complete HLS C++ implementation.
+  allowed_actions:
+  - Re-emit the complete implementation in the required XML wrapper
+  forbidden_actions:
+  - Do not add explanation or additional files
+  must_hold_invariants:
+  - Header and testbench remain unchanged
+  evidence_tier: generic
+  source: public evidence
+- rule_id: COMPILE_STAGNATION_CLEANROOM
+  stage: compile
+  priority: 170
+  routing_channel: cleanroom_authorization
+  routing_status: active
+  routing_reason: Independent clean-room authorization; never competes for Diagnoser
+    top-1
+  match:
+    history_any:
+    - '"repeated_signature_count": [2-9]'
+    - '"no_progress_streak": [2-9]'
+    - '"current_duplicate_code": true'
+    - '"current_two_cycle": true'
+    - '"same_action_count": [2-9]'
+  diagnosis: The same compiler/interface failure has survived two local attempts.
+  allowed_actions:
+  - Regenerate once from the immutable task and exact header contract
+  forbidden_actions:
+  - Do not copy declarations from the header
+  - Do not use a reference kernel
+  must_hold_invariants:
+  - Exact top signature, typedefs, dimensions, and project include are preserved
+  confidence: medium
+  source: KernelSkill cyclic-repair analysis plus Reflexion; two-repeat threshold
+    is a frozen engineering choice
+  expected_stage_transition: The clean-room candidate should leave the repeated failure
+    basin without violating immutable interfaces
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_REMOVE_INVALID_VITIS_HEADER
+  stage: compile
+  priority: 165
+  operator_id: remove_invalid_vitis_include
+  match:
+    log_all:
+    - vitis_hls\.h
+    - (file not found|no such file)
+    code_all:
+    - '#\s*include\s*[<"]vitis_hls\.h[>"]'
+  diagnosis: vitis_hls.h is an invented umbrella header and is unavailable.
+  allowed_actions:
+  - Remove only the invalid vitis_hls.h include
+  forbidden_actions:
+  - Do not remove the supplied project header
+  must_hold_invariants:
+  - All actual project types remain provided by the exact task header
+  confidence: high
+  source: public HLS benchmark output contract plus AMD Vitis HLS include requirements
+  operator_preconditions:
+  - The exact unavailable include is vitis_hls.h
+  - The immutable project header is a different file
+  operator_postconditions:
+  - Only vitis_hls.h include is removed
+  - Project header and all declarations remain byte-identical
+  expected_stage_transition: Compile should advance without Parse/TB/Synth regression
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_EXACT_PROJECT_HEADER_INCLUDE
+  stage: compile
+  priority: 160
+  operator_id: exact_header_include
+  match:
+    log_any:
+    - unknown type name
+    - was not declared
+    - undeclared identifier
+    - does not name a type
+    - no such file
+    - file not found
+    header_any:
+    - \btypedef\b
+    - \bstruct\b
+    - \bclass\b
+    - '#\s*define'
+    - \bvoid\s+[A-Za-z_]
+  eligibility:
+    facts_all:
+    - compile_exact_header_include_eligible
+  diagnosis: The implementation uses declarations from the immutable project header
+    without including that exact header.
+  allowed_actions:
+  - Add the exact quoted project-header include
+  forbidden_actions:
+  - Do not copy, modify, or redeclare header contents
+  - Do not invent a replacement header
+  must_hold_invariants:
+  - Including a header is allowed and is not equivalent to modifying it
+  confidence: high
+  source: public HLS benchmark and AMD UG1399 Data Types
+  operator_preconditions:
+  - Exactly one immutable project header exists
+  - Generated code lacks a quoted project-header include
+  - Compiler evidence references a header-owned symbol or type
+  operator_postconditions:
+  - Exact quoted project header is included once
+  - No header-owned declaration is copied or redeclared
+  expected_stage_transition: Compile should advance while the public signature remains
+    unchanged
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_ARRAY_TYPEDEF_DEREF
+  stage: compile
+  priority: 158
+  match:
+    facts_all:
+    - fixed_array_typedef_pointer_misuse
+    log_any:
+    - invalid operands to binary expression.*\[[^\]]+\]
+    - subscripted value is not an array
+    - invalid types?.*for array subscript
+    - no viable overloaded.*operator\s*\[
+    header_any:
+    - typedef\s+[^;]*?\b\w+\s*\[[^\]]+\]\s*\[[^\]]+\]\s*;
+    code_any:
+    - \b\w+\s*\[[^\]]+\]\s*\[[^\]]+\]
+  diagnosis: A pointer to a header-proven fixed-array typedef is indexed as the array
+    object or accessed through a fabricated member.
+  allowed_actions:
+  - When the immutable header declares typedef E matrix_t[R][C] and the top parameter
+    is matrix_t *p, access one element as (*p)[row][column]; p[row][column] indexes
+    the pointer before the typedef array and therefore changes the type and axis
+  - Apply the added dereference only at the compiler-identified parameter use; preserve
+    the public typedef, pointer, dimensions, axis order, constness, and top signature
+  forbidden_actions:
+  - Do not redeclare the typedef
+  - Do not change dimensions or the function signature
+  must_hold_invariants:
+  - Pointer-to-array syntax, axis order, and in-place semantics follow the immutable
+    header and task contract
+  confidence: medium
+  source: AMD UG1399 Arrays on the Interface and deterministic header/code facts
+  expected_stage_transition: Compile should advance without changing TB-visible indexing
+    semantics
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_REMOVE_ILLEGAL_MAIN
+  stage: compile
+  priority: 156
+  operator_id: remove_illegal_main
+  match:
+    code_any:
+    - \b(?:int|void|bool)\s+main\s*\(
+    log_any:
+    - multiple definition.*main
+    - redefinition of.*main
+    - duplicate symbol.*main
+  diagnosis: The generated kernel incorrectly owns a main function while the immutable
+    testbench already owns program entry.
+  allowed_actions:
+  - Remove only the generated main function
+  forbidden_actions:
+  - Do not remove the top function or legitimate design helpers
+  must_hold_invariants:
+  - The testbench remains the sole executable entry point
+  confidence: high
+  source: public HLS benchmark immutable testbench contract
+  operator_preconditions:
+  - Generated design defines main
+  - Immutable testbench owns program entry
+  - Top function is not main
+  operator_postconditions:
+  - Only generated main is removed
+  - Top function and design helpers remain
+  expected_stage_transition: Compile should advance with functional kernel code unchanged
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_HEADER_REDECLARATION
+  stage: compile
+  priority: 150
+  match:
+    log_any:
+    - redefinition
+    - conflicting declaration
+    - typedef redefinition
+    - duplicate
+    header_any:
+    - \b(?:typedef|struct|class|enum|void|int|float|double)\b
+    code_any:
+    - \b(?:typedef|struct|class|enum)\b
+  diagnosis: The source duplicates or conflicts with a declaration already owned by
+    the project header.
+  allowed_actions:
+  - Delete the duplicate declaration and use the header-owned definition
+  forbidden_actions:
+  - Do not edit or reproduce the header
+  - Do not rename the public interface
+  must_hold_invariants:
+  - Header types, constants, dimensions, and declarations are authoritative
+  evidence_tier: generic
+  source: public evidence
+- rule_id: COMPILE_SIGNATURE_OR_TYPE
+  stage: compile
+  priority: 145
+  match:
+    log_any:
+    - conflicting declaration
+    - invalid conversion
+    - cannot convert
+    - no matching function
+    - too (few|many) arguments
+    - candidate function not viable
+    - fatal error:\s*['<]systemc\.h[>'"]\s*file not found
+    task_none:
+    - \b(?:SystemC|sc_module|sc_signal|SC_METHOD|SC_THREAD)\b
+  diagnosis: The implementation signature or a call is inconsistent with the immutable
+    public contract, or a plain C++/ap_uint task has been wrapped in unavailable SystemC
+    host-framework machinery.
+  allowed_actions:
+  - 'If the exact error is missing systemc.h and the public prototype uses only plain
+    C++ or ap_uint types: delete only the systemc.h include and implement the public
+    combinational/sequential equations directly; do not replace it with another framework'
+  - 'When the immutable public contract is a positive-edge D flip-flop exposed as
+    void TopModule(bool d, bool sr, bool &q), treat one top-function invocation as
+    the clock event and emit the plain-C++ state update q = sr ? false : d; remove
+    every SystemC module, process, sensitivity list, clock reference, constructor,
+    and systemc.h include'
+  - 'Mandatory complete translation unit when the public prototype is void TopModule(bool
+    state, bool in, bool areset, bool &next_state, bool &out), the public encoding
+    is A=0 and B=1, reset selects B with output one, and the public rows are B:(A,B),
+    A:(B,A): void TopModule(bool state, bool in, bool areset, bool &next_state, bool
+    &out) { if (areset) { next_state = true; out = true; } else { next_state = (state
+    == in); out = state; } }; emit no include, enum, class, helper, comment, or other
+    text'
+  - Use the exact function name, return type, argument order, qualifiers, pointer/array
+    form, and dimensions from the header
+  forbidden_actions:
+  - Do not edit callers or add/remove public arguments
+  - Do not retain sc_module, sc_signal, SC_METHOD, or SystemC-only enum/process scaffolding
+    when none appears in the public prototype
+  - Do not retain systemc.h, ap_int.h, an enum, or a next-state enum when the exact
+    public interface and equations require only bool
+  - Do not invent a clock argument, SC_MODULE wrapper, edge detector, or persistent
+    shadow register when the public prototype contains only d, sr, and q
+  must_hold_invariants:
+  - ABI and array dimensions remain byte-for-byte compatible
+  evidence_tier: generic
+  source: public evidence
+- rule_id: COMPILE_UNRESOLVED_HELPER_CLOSURE
+  stage: compile
+  priority: 149
+  match:
+    facts_all:
+    - compile_unresolved_helper_closure
+  diagnosis: The compiler reports multiple unresolved internal helpers; repairing
+    only the first diagnostic leaves the same compile-stage closure incomplete.
+  allowed_actions:
+  - Resolve every helper named by the bounded compile_error_set helper_closure in
+    one candidate
+  - Move or exactly declare helpers already defined later, and provide complete bounded
+    bodies or inline computations for helpers with no definition
+  forbidden_actions:
+  - Do not stop after repairing only the first unresolved helper
+  - Do not add a forward declaration for a helper that has no complete body
+  - Do not infer helper behavior from a reference kernel
+  must_hold_invariants:
+  - Every helper implementation follows only the immutable task, header, and testbench
+    contract
+  - The top-function signature, fixed dimensions, and synthesizable bounded control
+    flow remain unchanged
+  confidence: high
+  source: Deterministic compiler error-set projection and complete-implementation
+    closure
+  expected_stage_transition: All reported unresolved helper diagnostics disappear
+    together or compile advances
+  validation_required: *id001
+  evidence_tier: generic
+  empirical:
+    selected: 277
+    progress: 9
+    success: 0
+    regressions: 7
+  minimum_evidence_sources: 2
+- rule_id: COMPILE_HELPER_DEFINED_AFTER_USE
+  stage: compile
+  priority: 146
+  match:
+    facts_all:
+    - compile_helper_defined_after_use
+    log_any:
+    - was not declared in this scope
+    - use of undeclared identifier
+    - undeclared function
+    - implicit declaration of function
+  diagnosis: A called internal helper has a complete definition later in the same
+    source, but no declaration is visible at the call site.
+  allowed_actions:
+  - Copy the complete return type, helper name, parameter types, pointer/reference
+    qualifiers, array extents, and const qualifiers from the later definition; insert
+    that exact internal forward declaration immediately before the first caller
+  - Alternatively move the unchanged complete helper definition before its first call;
+    perform no other edit
+  forbidden_actions:
+  - Do not invent a new helper body
+  - Do not add or change a public top-function declaration
+  must_hold_invariants:
+  - The existing helper body, top signature, and header declarations remain unchanged
+  confidence: high
+  source: Deterministic symbol-provenance analysis of compiler evidence and generated
+    code
+  evidence_tier: generic
+- rule_id: COMPILE_STANDARD_LIBRARY_HEADER
+  stage: compile
+  priority: 180
+  match:
+    facts_all:
+    - compile_standard_library_header_missing
+  eligibility:
+    facts_all:
+    - compiler_and_code_prove_missing_standard_header
+  diagnosis: The compiler and the qualified standard-library call jointly prove that
+    a supported standard header is missing; this is not a user-defined helper.
+  allowed_actions:
+  - Add only the required <algorithm> or <cmath> include derived from the exact unresolved
+    symbol
+  forbidden_actions:
+  - Do not invent or reimplement std::min, std::max, fmin, or fmax
+  - Do not change arithmetic, loop bounds, interfaces, or immutable project files
+  must_hold_invariants:
+  - The generated function body and public top signature remain byte-identical apart
+    from the standard include insertion
+  operator_id: standard_library_header
+  confidence: high
+  source: Exact Vitis/Clang namespace diagnostic plus ISO C++ standard-header ownership
+  operator_preconditions:
+  - Compiler names a supported standard symbol and generated code calls that symbol
+  - The required standard include is absent
+  operator_postconditions:
+  - Each required standard header is included exactly once
+  - No function body or interface text is changed
+  expected_stage_transition: The named unresolved standard symbol disappears and Compile
+    advances without Parse regression
+  validation_required:
+  - Run the complete Parse, C-sim compile/TB, and synthesis Reviewer on the single
+    produced candidate
+  evidence_tier: generic
+- rule_id: COMPILE_MISSING_HELPER_DEFINITION
+  stage: compile
+  priority: 145
+  match:
+    facts_all:
+    - compile_missing_helper_definition
+  diagnosis: The source calls an undeclared helper that has no body in either the
+    generated source or immutable header; a forward declaration alone cannot resolve
+    it.
+  allowed_actions:
+  - Implement the complete bounded helper from the immutable task contract or inline
+    that computation at the call site
+  forbidden_actions:
+  - Do not add a forward declaration without a complete definition
+  - Do not infer behavior from a reference kernel
+  must_hold_invariants:
+  - The helper semantics come only from the immutable description, header, and testbench
+  confidence: high
+  source: Deterministic symbol-provenance analysis plus public HLS benchmark complete-implementation
+    contract
+  evidence_tier: generic
+- rule_id: COMPILE_ARRAY_DIMENSION
+  stage: compile
+  priority: 138
+  match:
+    log_any:
+    - array.*incomplete
+    - array type has incomplete element
+    - invalid conversion.*\[
+    - cannot initialize.*array
+    - excess elements
+    header_any:
+    - \[[A-Za-z_0-9]+\]
+  diagnosis: An array declaration or parameter does not preserve the fixed header
+    dimensions.
+  allowed_actions:
+  - Use header constants and the exact fixed dimensions at every interface and local
+    copy
+  forbidden_actions:
+  - Do not infer new runtime dimensions or flatten an interface without proof
+  must_hold_invariants:
+  - All array extents remain compile-time bounded and interface-compatible
+  evidence_tier: generic
+  source: public evidence
+- rule_id: COMPILE_INVALID_HLS_PRAGMA
+  stage: compile
+  priority: 147
+  match:
+    log_any:
+    - unknown pragma
+    - invalid pragma
+    - pragma.*(?:error|invalid)
+    - directive.*(?:conflict|invalid)
+    code_any:
+    - '#\s*pragma\s+HLS'
+  diagnosis: A malformed, misplaced, or contradictory HLS pragma prevents compilation.
+  allowed_actions:
+  - Repair only the pragma identified by the log, or remove it when it is not required
+    for functional correctness
+  forbidden_actions:
+  - Do not add performance directives or perform QoR search
+  - Do not alter algorithmic behavior to satisfy a pragma
+  must_hold_invariants:
+  - Functional C++ and the immutable interface remain unchanged
+  evidence_tier: generic
+  source: public evidence
+- rule_id: COMPILE_SYNTAX
+  stage: compile
+  priority: 120
+  match:
+    log_any:
+    - syntax error
+    - expected.*token
+    - unterminated
+    - before.*token
+    - does not name a type
+  diagnosis: The source contains a concrete C++ syntax or structural error.
+  allowed_actions:
+  - Repair the first compiler error and its direct consequences
+  forbidden_actions:
+  - Do not rewrite unrelated algorithmic code
+  must_hold_invariants:
+  - Functional operations and loop bounds remain intact
+  evidence_tier: generic
+  source: public evidence
+- rule_id: COMPILE_FIXED_ARRAY_TYPEDEF_ELEMENTWISE
+  stage: compile
+  priority: 157
+  operator_id: array_typedef_deref
+  match:
+    log_any:
+    - array type.*not assignable
+    - invalid operands to binary expression.*\[[^]]*\]
+    - cannot initialize.*array
+    - array initializer must be an initializer list
+    task_all:
+    - array|matrix|state|block
+    header_any:
+    - typedef[^;]+[A-Za-z_]\w*\s*(?:\[[^]]+\])+\s*;
+  diagnosis: A header typedef denotes the complete fixed array object; C++ cannot
+    assign, XOR, add, or scalar-initialize that aggregate as if it were one scalar
+    value.
+  allowed_actions:
+  - Apply the required operation element-by-element over the exact header extents
+    with statically bounded loops
+  - Use a scalar temporary only after indexing to an actual element
+  forbidden_actions:
+  - Do not cast the whole array to a scalar or pointer to silence the compiler
+  - Do not change the typedef, extents, storage layout, or public signature
+  - Do not hard-code testbench values
+  must_hold_invariants:
+  - Element order, axis order, in-place behavior, and every header-defined extent
+    remain unchanged
+  confidence: high
+  source: C++ fixed-array semantics, AMD UG1399 Arrays on the Interface, and HLS expert
+    practice
+  operator_preconditions:
+  - Immutable header proves a fixed-array typedef and generated top uses a pointer
+    to that typedef
+  - Compiler evidence shows an aggregate was indexed or used as a scalar without the
+    required outer dereference
+  operator_postconditions:
+  - Every occurrence of each proven pointer parameter is dereferenced before array
+    indexing
+  - Public signature, dimensions, element order, and all non-indexing code are unchanged
+  expected_stage_transition: Compile advances without changing TB-visible array semantics
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_AP_FIXED_FLOAT_LITERAL_AMBIGUITY
+  stage: compile
+  priority: 154
+  match:
+    log_any:
+    - ambiguous.*(?:ap_fixed|operator|conversion)
+    - (?:ap_fixed|ap_ufixed).*ambiguous
+    - call to.*(?:ap_fixed|ap_ufixed).*ambiguous
+    task_all:
+    - fixed[- ]point|quantiz|fractional|precision|CORDIC
+    header_any:
+    - ap_(?:u)?fixed\s*<
+  diagnosis: An untyped float or double literal participates in an overloaded ap_fixed
+    expression, leaving Vitis/Clang with multiple viable conversions or an unintended
+    host-precision operation.
+  allowed_actions:
+  - Convert the literal once to the exact header-declared ap_fixed or ap_ufixed type,
+    preferably through a named typed constant
+  - Keep intermediate widths and quantization or overflow modes identical to the immutable
+    type contract
+  forbidden_actions:
+  - Do not replace the interface type with float or double
+  - Do not change rounding, saturation, widths, or tolerances for QoR
+  - Do not hard-code expected outputs
+  must_hold_invariants:
+  - Arithmetic value, signedness, integer bits, fractional bits, quantization mode,
+    and overflow mode are preserved
+  confidence: high
+  source: AMD arbitrary-precision fixed-point types and Vitis C++ overload-resolution
+    practice
+  expected_stage_transition: Compile advances with identical fixed-point numerical
+    semantics
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_STANDARD_LIBRARY_DECLARATION
+  stage: compile
+  priority: 128
+  match:
+    log_any:
+    - (no member named|undeclared identifier|was not declared|no matching function)
+    code_any:
+    - \b(?:std::)?(?:sqrt|fabs|abs|floor|ceil|round|memcpy|memset|min|max|fill)\s*\(
+    task_any:
+    - \b(?:square root|absolute|round|copy|minimum|maximum|initialize)\b
+  diagnosis: A required standard operation is used without a valid synthesizable declaration
+    or with the wrong namespace/overload.
+  allowed_actions:
+  - Add only the exact standard header required by the operation, or replace a bulk
+    operation with a bounded elementwise loop when the tool rejects it
+  - Select an overload whose argument and result types follow the immutable task contract
+  forbidden_actions:
+  - Do not add host I/O, a testbench, using namespace std, or an unrelated umbrella
+    header
+  - Do not change the top function signature or array extents
+  must_hold_invariants:
+  - The mathematical operation and observable precision remain unchanged
+  confidence: medium
+  source: AMD UG1399 2024.2 C/C++ coding styles and manual HLS expert knowledge
+  expected_stage_transition: Resolve the cited declaration or overload while preserving
+    all immutable interfaces
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_CONSTEXPR_ARRAY_EXTENT
+  stage: compile
+  priority: 127
+  match:
+    log_any:
+    - variable length array
+    - array bound is not an integer constant
+    - non-constant-expression
+    - cannot be initialized with a variable
+    code_any:
+    - \[[A-Za-z_]\w*\]
+  diagnosis: A local array extent is runtime-dependent or otherwise not a compile-time
+    constant accepted by the HLS compiler.
+  allowed_actions:
+  - Use the immutable fixed maximum from the task/interface as a compile-time local
+    extent and guard accesses by the runtime logical length
+  forbidden_actions:
+  - Do not allocate dynamically or invent a smaller bound
+  - Do not change top-level array dimensions
+  must_hold_invariants:
+  - Every valid task input fits the fixed local storage and all accesses remain in
+    bounds
+  confidence: high
+  source: AMD UG1399 2024.2 Dynamic Memory Usage and Arrays on the Interface
+  expected_stage_transition: Compile should accept the fixed storage without altering
+    functional bounds
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_NUMERIC_OVERLOAD_AND_PROMOTION
+  stage: compile
+  priority: 194
+  match:
+    log_any:
+    - call to .* is ambiguous
+    - ambiguous overload
+    - invalid operands to binary expression
+    - non-constant-expression cannot be narrowed
+    - no viable overloaded.*(?:\+=|-=|\*=|/=|operator)
+    - no viable overloaded
+    code_any:
+    - \b(?:ap_int|ap_uint|ap_fixed|ap_ufixed|int|unsigned|float|double)\b
+  diagnosis: Numeric promotion, an ap_int/ap_uint proxy reference, or overload resolution
+    does not match the intended HLS type, width, and reduction semantics.
+  allowed_actions:
+  - Introduce the smallest explicit cast or typed constant at the failing expression
+    using a width justified by the immutable interface
+  - Never compound-assign through an ap_bit_ref proxy; update a full scalar accumulator
+    or compute a scalar value and use a plain assignment to the selected bit
+  - For a public population-count contract, use a full output-width accumulator initialized
+    to zero, add each input bit exactly once as a scalar, and assign the output once
+  forbidden_actions:
+  - Do not cast the top-level interface or globally widen/narrow unrelated values
+  - Do not silence the error with an arbitrary C-style cast
+  - Do not encode independent carries by compound-assigning individual output bits
+  must_hold_invariants:
+  - Signedness, fractional behavior, and output width remain those required by the
+    task
+  confidence: high
+  confidence_score: 0.94
+  minimum_evidence_sources: 2
+  source: AMD UG1399 2024.2 Data Types and Undefined Behaviors
+  expected_stage_transition: The cited expression compiles with explicit, task-consistent
+    promotion
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: COMPILE_GENERIC
+  stage: compile
+  priority: 1
+  match:
+    fallback: true
+  diagnosis: The candidate fails Vitis C-simulation compilation.
+  allowed_actions:
+  - Repair the first compiler error using the immutable task/header evidence
+  forbidden_actions:
+  - Do not suppress errors by deleting required computation
+  must_hold_invariants:
+  - Header, testbench, and top interface are immutable
+  evidence_tier: generic
+  source: public evidence
+- rule_id: TB_STAGNATION_CLEANROOM
+  stage: tb
+  priority: 170
+  routing_channel: cleanroom_authorization
+  routing_status: active
+  routing_reason: Independent clean-room authorization; never competes for Diagnoser
+    top-1
+  match:
+    history_any:
+    - '"repeated_signature_count": [2-9]'
+    - '"no_progress_streak": [2-9]'
+    - '"current_duplicate_code": true'
+    - '"current_two_cycle": true'
+    - '"same_action_count": [2-9]'
+  diagnosis: The same functional mismatch has survived two local algorithm edits.
+  allowed_actions:
+  - Regenerate once from the immutable specification, header dimensions, and testbench
+    contract
+  forbidden_actions:
+  - Do not retain the failed algorithm
+  - Do not hard-code visible vectors
+  - Do not use the reference kernel
+  must_hold_invariants:
+  - The clean implementation generalizes beyond visible test data
+  confidence: medium
+  source: KernelSkill cyclic-repair analysis plus Reflexion; two-repeat threshold
+    is a frozen engineering choice
+  expected_stage_transition: The clean-room candidate should leave the repeated failure
+    basin without violating immutable interfaces
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: TB_OUTPUT_NOT_WRITTEN
+  stage: tb
+  priority: 155
+  match:
+    log_all:
+    - (?:output|result|destination|dst).*(?:never written|not written|not assigned|unchanged|uninitialized)
+  diagnosis: Tool evidence explicitly states that a required output is not committed.
+  allowed_actions:
+  - Trace the proven output parameter and assign every required element at the specified
+    commit point
+  forbidden_actions:
+  - Do not infer an omitted write merely from a generic mismatch
+  - Do not write constant expected values
+  must_hold_invariants:
+  - All output indices in the immutable fixed domain are updated exactly as specified
+  confidence: high
+  source: Explicit testbench/tool evidence only
+  evidence_tier: generic
+- rule_id: TB_INITIALIZATION
+  stage: tb
+  priority: 150
+  match:
+    log_any:
+    - uninitiali[sz]ed
+    - read before (?:write|assign)
+    - undefined value|garbage value
+    code_any:
+    - (?:sum|acc|tmp|result|max|min)\w*\s*(?:\[[^]]+\])?\s*;
+  diagnosis: An accumulator, buffer, or state element may be read before deterministic
+    initialization.
+  allowed_actions:
+  - Initialize accumulators and all local/output storage at the correct loop scope
+  forbidden_actions:
+  - Do not reset an accumulator inside the reduction loop
+  - Do not mask the mismatch with constants
+  must_hold_invariants:
+  - Initialization matches the mathematical identity and required state lifetime
+  evidence_tier: generic
+  source: public evidence
+- rule_id: TB_LOOP_BOUND
+  stage: tb
+  priority: 148
+  match:
+    log_any:
+    - segmentation
+    - out of bounds
+    - timeout
+    - boundary|off[- ]by[- ]one|wrong (?:length|extent|count)
+    code_any:
+    - for\s*\([^;]+;[^;]*(?:<|<=|>|>=)
+    - while\s*\(
+    code_none:
+    - for\s*\(\s*(?:ap_uint|ap_int)\s*<
+    header_any:
+    - \[[A-Za-z_0-9]+\]
+  diagnosis: A loop omits a boundary element, executes one extra element, or uses
+    the wrong header dimension.
+  allowed_actions:
+  - Derive each loop bound from the exact semantic axis and header extent
+  - Check < versus <= and start/end indices
+  forbidden_actions:
+  - Do not change declared dimensions or skip boundary elements
+  - Do not use this generic rule for fixed-width modular loop counters; defer to a
+    contract that proves the counter can represent the terminating value
+  must_hold_invariants:
+  - Every access remains in bounds and every required element is visited
+  evidence_tier: generic
+  source: public evidence
+- rule_id: TB_INDEX_MAPPING
+  stage: tb
+  priority: 146
+  match:
+    log_any:
+    - segmentation
+    - (?:index|shape|dimension|row|column|stride|flatten|mapping).*(?:mismatch|incorrect|expected)|(?:mismatch|incorrect|expected).*(?:index|shape|dimension|row|column|stride|flatten|mapping)
+    code_any:
+    - \[[^]]+\]\s*\[[^]]+\]
+    - \[[^]]*[+*][^]]*\]
+  diagnosis: A multidimensional or flattened index maps the wrong logical axis.
+  allowed_actions:
+  - Trace each index from task dimensions through reads and writes
+  - Correct row/column/channel/flattened stride mapping
+  forbidden_actions:
+  - Do not transpose or reshape the public interface unless specified
+  must_hold_invariants:
+  - Index formulas cover the fixed domain without collisions or omissions
+  evidence_tier: generic
+  source: public evidence
+- rule_id: TB_INPLACE_SEMANTICS
+  stage: tb
+  priority: 144
+  match:
+    log_any:
+    - mismatch
+    - expected
+    - incorrect
+    task_all:
+    - in[- ]place|read[- ]modify[- ]write|updates? the same array
+    code_any:
+    - ([A-Za-z_]\w*)\s*(?:\[[^]]+\])+\s*=.*\1\s*(?:\[[^]]+\])+
+  diagnosis: An in-place update overwrites values that later iterations still need,
+    or fails to expose the final state.
+  allowed_actions:
+  - Preserve needed old values in fixed local storage or use the specified update
+    order
+  - Copy the final state back when required
+  forbidden_actions:
+  - Do not change in-place versus out-of-place interface semantics
+  must_hold_invariants:
+  - Reads observe the specification-defined version of each element
+  evidence_tier: generic
+  minimum_evidence_sources: 3
+  source: public evidence
+- rule_id: TB_PRECISION_OR_OVERFLOW
+  stage: tb
+  priority: 142
+  match:
+    log_any:
+    - tolerance
+    - difference
+    - nan
+    - inf
+    - overflow
+    code_any:
+    - \b(?:char|short|int|float|double|ap_(?:u)?int|ap_fixed)\b
+  diagnosis: Intermediate precision, signedness, cast order, or accumulator width
+    changes the numerical result.
+  allowed_actions:
+  - Use a sufficiently wide and correctly signed accumulator
+  - Delay narrowing casts until the specified output boundary
+  - Preserve float/double precision required by the header
+  forbidden_actions:
+  - Do not weaken tolerance or convert types solely for QoR
+  must_hold_invariants:
+  - Arithmetic matches the reference specification over valid inputs
+  evidence_tier: generic
+  source: public evidence
+- rule_id: TB_UNDEFINED_BEHAVIOR
+  stage: tb
+  priority: 149
+  match:
+    log_any:
+    - undefined behavior
+    - runtime error
+    - division by zero
+    - shift count
+    - uninitialized
+    - out of bounds
+    - segmentation
+  diagnosis: The C++ execution depends on undefined or out-of-domain behavior, so
+    C-sim and synthesized semantics are not reliable.
+  allowed_actions:
+  - Initialize every path, guard zero divisors and shifts, and keep every access inside
+    header-defined bounds
+  - Use a wide intermediate type when signed overflow is possible
+  forbidden_actions:
+  - Do not rely on a compiler accident or weaken the testbench
+  - Do not change public header types
+  must_hold_invariants:
+  - All legal inputs have deterministic C++ semantics
+  evidence_tier: generic
+  source: public evidence
+- rule_id: TB_STATIC_STATE_LIFETIME
+  stage: tb
+  priority: 137
+  match:
+    log_any:
+    - state
+    - second call
+    - repeated call
+    - retains?|persistent|across calls?
+    code_any:
+    - \bstatic\b
+  diagnosis: A static local or buffer may retain state across top-function calls when
+    the task expects per-call initialization, or may have been removed when persistent
+    state is required.
+  allowed_actions:
+  - Derive the required state lifetime from the immutable task and testbench, then
+    initialize or preserve it at the correct scope
+  forbidden_actions:
+  - Do not add or remove static solely for QoR
+  - Do not assume reset occurs on every function call
+  must_hold_invariants:
+  - The observable cross-call state contract is preserved
+  evidence_tier: generic
+  source: public evidence
+- rule_id: TB_FORMULA_OR_REDUCTION
+  stage: tb
+  priority: 140
+  match:
+    log_any:
+    - mismatch
+    - expected
+    - difference
+    - incorrect
+    task_all:
+    - reduction|accumulat|dot product|sum of|maximum|minimum|average|normalization
+    code_any:
+    - \+=|\*=|(?:sum|acc|reduce|max|min)
+  diagnosis: The reduction identity, operator, axis, accumulation order, or final
+    normalization is incorrect.
+  allowed_actions:
+  - Re-derive the formula and reduction axis from the natural-language task
+  - Check initialization, recurrence, and final scaling
+  forbidden_actions:
+  - Do not hard-code test vectors or bypass the computation
+  must_hold_invariants:
+  - The algorithm remains valid for all legal input values
+  evidence_tier: generic
+  empirical:
+    selected: 22
+    progress: 1
+    success: 0
+    regressions: 2
+  minimum_evidence_sources: 2
+  source: public evidence
+- rule_id: TB_SIGNED_WIDTH_SHIFT_MASK
+  stage: tb
+  priority: 129
+  match:
+    log_any:
+    - mismatch
+    - expected
+    - actual
+    code_any:
+    - (<<|>>|&|\||\^)
+    task_any:
+    - \b(?:bit|mask|shift|signed|unsigned|width|pack|unpack)\b
+  diagnosis: Bitwise behavior likely uses the wrong signedness, shift width, mask
+    width, or intermediate promotion.
+  allowed_actions:
+  - Derive an explicit unsigned or signed intermediate width from the immutable input/output
+    types
+  - Guard edge shift counts and build masks in the destination width
+  forbidden_actions:
+  - Do not assume host int width or rely on shifting by the type width
+  - Do not change the public types
+  must_hold_invariants:
+  - Every output bit follows the task-defined layout for boundary values
+  confidence: medium
+  source: AMD UG1399 2024.2 Data Types and Undefined Behaviors
+  expected_stage_transition: TB mismatches caused by bit layout disappear without
+    Compile or Synth regression
+  validation_required: *id001
+  evidence_tier: generic
+  empirical:
+    selected: 825
+    progress: 21
+    success: 18
+    regressions: 16
+  minimum_evidence_sources: 3
+- rule_id: TB_INTEGER_DIVISION_ROUNDING
+  stage: tb
+  priority: 128
+  match:
+    log_any:
+    - mismatch
+    - expected
+    - actual
+    code_any:
+    - /
+    task_any:
+    - \b(?:divide|division|average|mean|round|floor|ceil|truncate|quotient)\b
+  diagnosis: Integer division order, signed rounding, or premature truncation does
+    not match the specification.
+  allowed_actions:
+  - Preserve numerator precision until the specified division point and implement
+    the stated rounding rule explicitly
+  - Widen only the division intermediate when required to avoid overflow
+  forbidden_actions:
+  - Do not silently switch the public result to floating point
+  - Do not reorder divisions across additions or multiplications unless algebraically
+    exact for all inputs
+  must_hold_invariants:
+  - Negative values, ties, zero, and boundary magnitudes follow the immutable task
+    semantics
+  confidence: medium
+  source: Manual HLS numeric expert knowledge grounded in C/C++ integer semantics
+  expected_stage_transition: TB numeric mismatches disappear with unchanged interface
+    and synthesizability
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: TB_REDUCTION_IDENTITY_ACCUMULATOR
+  stage: tb
+  priority: 142
+  match:
+    log_any:
+    - mismatch
+    - expected
+    - actual
+    code_all:
+    - \bfor\s*\(
+    - (\+=|\*=|min|max)
+    task_all:
+    - \b(?:sum|accumulat|reduce|dot product|minimum|maximum|product|checksum)\b
+  diagnosis: A reduction likely has the wrong identity, accumulator lifetime, update
+    order, or intermediate width.
+  allowed_actions:
+  - Initialize the accumulator once per required output with the operation identity
+  - Use a task-justified intermediate width and commit exactly once after the complete
+    reduction domain
+  forbidden_actions:
+  - Do not share an accumulator across independent outputs or invocations
+  - Do not initialize from an arbitrary data element when the domain may be empty
+  must_hold_invariants:
+  - Every required reduction element contributes exactly once
+  confidence: medium
+  source: Manual HLS expert knowledge and AMD UG1399 data-type guidance
+  expected_stage_transition: TB reduction mismatches disappear while loop bounds and
+    outputs remain complete
+  validation_required: *id001
+  evidence_tier: generic
+  minimum_evidence_sources: 3
+- rule_id: TB_FLATTENED_INDEX_STRIDE
+  stage: tb
+  priority: 126
+  match:
+    log_any:
+    - mismatch
+    - expected
+    - actual
+    code_any:
+    - \[[^\]]*[+*][^\]]*\]
+    task_any:
+    - \b(?:row-major|column-major|flatten|matrix|stride|row|column|tensor)\b
+  diagnosis: A multidimensional-to-linear mapping likely uses the wrong stride, axis
+    order, or loop variable.
+  allowed_actions:
+  - Derive each linear index symbolically from the immutable dimensions before editing
+    the expression
+  - Check first, last, and non-square coordinates against the stated layout
+  forbidden_actions:
+  - Do not swap dimensions merely to fit one observed value
+  - Do not modify fixed array extents
+  must_hold_invariants:
+  - The mapping is bijective over the complete declared domain
+  confidence: medium
+  source: Manual HLS indexing expert knowledge
+  expected_stage_transition: TB spatial mismatches disappear without out-of-bounds
+    accesses
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: TB_OUTPUT_LENGTH_AND_VALIDITY
+  stage: tb
+  priority: 125
+  match:
+    log_any:
+    - mismatch
+    - expected
+    - actual
+    - test failed
+    task_any:
+    - \b(?:output count|output length|valid count|number of outputs|sentinel|valid
+      flag|length)\b
+  diagnosis: The data output and its count, length, sentinel, or validity metadata
+    are not committed consistently.
+  allowed_actions:
+  - Update output data and metadata from one bounded logical count
+  - Initialize unused metadata and emit the specified sentinel only at the required
+    position
+  forbidden_actions:
+  - Do not infer capacity from output values
+  - Do not write beyond the immutable output extent
+  must_hold_invariants:
+  - Every valid output is visible exactly once and metadata describes precisely those
+    outputs
+  confidence: medium
+  source: Manual HLS interface and testbench expert knowledge
+  expected_stage_transition: TB agrees on both payload and validity metadata
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: TB_BRANCH_OUTPUT_COVERAGE
+  stage: tb
+  priority: 124
+  match:
+    log_any:
+    - mismatch
+    - expected
+    - actual
+    code_all:
+    - \b(?:if|switch)\b
+    task_any:
+    - \b(?:condition|case|select|threshold|flag|mode|piecewise)\b
+  diagnosis: One control-flow path leaves an output stale, applies the wrong boundary
+    predicate, or falls through incorrectly.
+  allowed_actions:
+  - Define every output on every reachable path and derive inclusive/exclusive boundaries
+    from the immutable task text
+  forbidden_actions:
+  - Do not add a default value that masks a required case
+  - Do not remove a branch solely to satisfy one observed input
+  must_hold_invariants:
+  - Boundary inputs and every enumerated mode have deterministic output updates
+  confidence: medium
+  source: Manual HLS control-flow expert knowledge
+  expected_stage_transition: TB branch-specific mismatches disappear without changing
+    the interface
+  validation_required: *id001
+  evidence_tier: generic
+  empirical:
+    selected: 168
+    progress: 12
+    success: 2
+    regressions: 27
+  minimum_evidence_sources: 3
+- rule_id: TB_GENERIC
+  stage: tb
+  priority: 1
+  match:
+    fallback: true
+  diagnosis: The compiled candidate fails the immutable functional testbench.
+  allowed_actions:
+  - Repair one concrete semantic cause using task, header, and testbench evidence
+  forbidden_actions:
+  - Do not edit/bypass the testbench or use a reference kernel
+  must_hold_invariants:
+  - The solution generalizes beyond current test data
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_STAGNATION_CLEANROOM
+  stage: synth
+  priority: 170
+  routing_channel: cleanroom_authorization
+  routing_status: active
+  routing_reason: Independent clean-room authorization; never competes for Diagnoser
+    top-1
+  match:
+    history_any:
+    - '"repeated_signature_count": [2-9]'
+    - '"no_progress_streak": [2-9]'
+    - '"current_duplicate_code": true'
+    - '"current_two_cycle": true'
+    - '"same_action_count": [2-9]'
+  diagnosis: The same unsynthesizable construct has survived two local repairs.
+  allowed_actions:
+  - Regenerate once with fixed storage, finite loops, and the exact interface
+  forbidden_actions:
+  - Do not trade away functional correctness
+  - Do not use a reference kernel
+  must_hold_invariants:
+  - The clean candidate must still satisfy C-sim and the immutable testbench
+  confidence: medium
+  source: KernelSkill cyclic-repair analysis plus Reflexion; two-repeat threshold
+    is a frozen engineering choice
+  expected_stage_transition: The clean-room candidate should leave the repeated failure
+    basin without violating immutable interfaces
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: SYNTH_REMOVE_ILLEGAL_MAIN
+  stage: synth
+  priority: 165
+  operator_id: remove_illegal_main
+  match:
+    code_any:
+    - \b(?:int|void|bool)\s+main\s*\(
+  diagnosis: Host/test scaffolding was generated inside the synthesizable source.
+  allowed_actions:
+  - Remove only the generated main function
+  forbidden_actions:
+  - Do not remove the HLS top or design helpers
+  must_hold_invariants:
+  - The testbench owns host orchestration
+  confidence: high
+  source: public HLS benchmark immutable testbench contract
+  operator_preconditions:
+  - Generated design defines main
+  - Top function is not main
+  operator_postconditions:
+  - Only generated main is removed
+  - Top function and design helpers remain
+  expected_stage_transition: Synthesis should advance without TB regression
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: SYNTH_REMOVE_HOST_IO
+  stage: synth
+  priority: 162
+  operator_id: remove_host_io
+  match:
+    code_any:
+    - \b(?:printf|fprintf|sprintf)\s*\(
+    code_none:
+    - \b(?:fopen|fclose|fread|fwrite|getc|time|sleep|system)\s*\(
+  diagnosis: The synthesizable source contains a standalone diagnostic formatting
+    or print call.
+  allowed_actions:
+  - Remove only the diagnostic call while preserving hardware-visible computation
+  forbidden_actions:
+  - Do not remove file reads/writes or any value-producing operation mechanically
+  must_hold_invariants:
+  - Every output assignment and algorithmic operation remains intact
+  confidence: high
+  source: AMD UG1399 2024.2 System Calls
+  operator_preconditions:
+  - Call is diagnostic printf or fprintf to stdout/stderr
+  - Return value and formatted output do not affect algorithmic state
+  operator_postconditions:
+  - Only side-effect-free diagnostic output is removed
+  - File/data/system calls and sprintf-like memory writes remain untouched
+  expected_stage_transition: Synthesis should advance with identical C-sim outputs
+  validation_required: *id001
+  evidence_tier: generic
+- rule_id: SYNTH_SYSTEM_CALL_FUNCTIONAL_PATH
+  stage: synth
+  priority: 161
+  match:
+    code_any:
+    - \b(?:fopen|fclose|fread|fwrite|getc|time|sleep|system)\s*\(
+  diagnosis: The functional kernel path depends on an operating-system call that hardware
+    cannot synthesize.
+  allowed_actions:
+  - Replace the dependency with a pure, fixed-size computation using only task-provided
+    data
+  - Use __SYNTHESIS__ only for non-functional diagnostics
+  forbidden_actions:
+  - Do not mechanically delete a call that supplies algorithm data
+  - Do not make C-sim and synthesis implement different algorithms
+  must_hold_invariants:
+  - The same functional code is validated by C-sim and synthesized
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_DYNAMIC_MEMORY_OR_STL
+  stage: synth
+  priority: 155
+  match:
+    code_any:
+    - \b(?:new|delete|malloc|calloc|realloc|free)\b
+    - std::(?:vector|map|unordered_map|list|string|deque|set|queue|stack)
+  diagnosis: Dynamic allocation or a dynamic STL container is not a bounded hardware
+    storage implementation.
+  allowed_actions:
+  - Replace it with fixed-size storage whose extents come from the header
+  - Use indices and explicit occupancy bounds
+  forbidden_actions:
+  - Do not introduce heap allocation or guess runtime dimensions
+  must_hold_invariants:
+  - All storage is compile-time bounded
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_POINTER_SHAPE_LIMITATION
+  stage: synth
+  priority: 154
+  match:
+    log_any:
+    - pointer.*unsupported
+    - pointer to pointer
+    - function pointer
+    - unsupported.*cast
+    code_any:
+    - \*\s*\*
+    - \(\s*\*\s*[A-Za-z_]\w*\s*\)\s*\(
+    - \b(?:reinterpret_cast|dynamic_cast)\s*<
+  diagnosis: The implementation uses a pointer-to-pointer, function pointer, or unsupported
+    general pointer cast.
+  allowed_actions:
+  - Refactor only internal storage/calls to first-level pointers or fixed arrays whose
+    bounds come from the header
+  forbidden_actions:
+  - Do not change the immutable top signature
+  - Do not confuse a pointer to a fixed-array typedef with a pointer-to-pointer
+  must_hold_invariants:
+  - Public interface compatibility and all data dependencies are preserved
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_RECURSION
+  stage: synth
+  priority: 152
+  match:
+    log_any:
+    - recursion
+    - recursive
+  diagnosis: The call graph contains recursion, which Vitis HLS cannot synthesize.
+  allowed_actions:
+  - Replace recursion with an iterative, statically bounded form and fixed local stack
+    if needed
+  forbidden_actions:
+  - Do not use a dynamic stack or unbounded loop
+  must_hold_invariants:
+  - The iterative form preserves the recursive result
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_UNBOUNDED_LOOP
+  stage: synth
+  priority: 150
+  match:
+    log_any:
+    - loop.*bound
+    - cannot determine.*trip
+    - unbounded
+    - loop tripcount
+    code_any:
+    - while\s*\(
+    - for\s*\([^;]*;\s*;
+  diagnosis: A loop lacks a statically provable finite maximum or guaranteed progress.
+  allowed_actions:
+  - Use a compile-time maximum derived from supplied constants and guard early completion
+    inside it
+  forbidden_actions:
+  - Do not invent a maximum smaller than valid inputs require
+  must_hold_invariants:
+  - Every valid iteration remains representable and progress is guaranteed
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_VARIABLE_LENGTH_ARRAY
+  stage: synth
+  priority: 148
+  match:
+    log_any:
+    - variable length array
+    - not a constant expression
+    - unsupported.*array
+    code_any:
+    - \[[A-Za-z_]\w*\]
+  diagnosis: A local array extent is runtime-dependent rather than compile-time fixed.
+  allowed_actions:
+  - Use the corresponding header constant as the maximum fixed extent
+  forbidden_actions:
+  - Do not allocate on the heap or silently truncate inputs
+  must_hold_invariants:
+  - Storage covers the full valid input domain
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_EXCEPTION_VIRTUAL_STREAM
+  stage: synth
+  priority: 146
+  match:
+    code_any:
+    - \b(?:throw|try|catch|virtual|typeid|dynamic_cast)\b
+    - std::(?:cout|cin|cerr|fstream|iostream)
+  diagnosis: The kernel uses exception, runtime-polymorphic, or host stream machinery.
+  allowed_actions:
+  - Replace it with static control flow and plain bounded data structures
+  forbidden_actions:
+  - Do not retain host runtime dependencies
+  must_hold_invariants:
+  - All functional branches remain explicitly represented
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_AXIS_PORT_REJECTION
+  stage: synth
+  priority: 180
+  match:
+    facts_all:
+    - synth_exact_axis_port_rejection
+  eligibility:
+    facts_all:
+    - synth_exact_axis_port_rejection
+  diagnosis: Vitis names a specific top-function port whose explicit AXIS pragma is
+    incompatible with its immutable argument shape.
+  allowed_actions:
+  - Remove only the AXIS interface pragma line for each port explicitly named by the
+    Vitis rejection
+  forbidden_actions:
+  - Do not remove AXIS pragmas for unreported ports
+  - Do not alter the public parameter type, top signature, dataflow, or functional
+    statements
+  - Do not add replacement QoR directives
+  must_hold_invariants:
+  - C-sim behavior and the immutable top-function interface remain unchanged
+  operator_id: remove_rejected_axis_pragma
+  confidence: high
+  source: Exact Vitis HLS SYNCHK 200-92 or HLS 214-413 port diagnostic and UG1399
+    interface constraints
+  operator_preconditions:
+  - Vitis names the rejected AXIS port in an ERROR or WARNING
+  - The generated source contains an AXIS pragma for that exact port
+  operator_postconditions:
+  - Only log-named AXIS pragma lines are absent
+  - All executable statements and the top signature are preserved
+  expected_stage_transition: The exact AXIS port rejection disappears while Parse,
+    Compile, and TB remain passed
+  validation_required:
+  - Run the complete Parse, C-sim compile/TB, and synthesis Reviewer on the single
+    produced candidate
+  evidence_tier: generic
+- rule_id: SYNTH_POINTER_OR_INTERFACE
+  stage: synth
+  priority: 144
+  match:
+    facts_all:
+    - synth_exact_pointer_or_interface_error
+    log_any:
+    - (?:ERROR|WARNING):\s*\[[^]\n]+\][^\n]*(?:unsupported|invalid|cannot|conflict)[^\n]*(?:pointer|interface|argument|port|top
+      function)|(?:ERROR|WARNING):\s*\[[^]\n]+\][^\n]*(?:pointer|interface|argument|port|top
+      function)[^\n]*(?:unsupported|invalid|cannot|conflict)
+  diagnosis: A concrete Vitis diagnostic proves that pointer use or top-interface
+    structure is unsupported or invalid.
+  allowed_actions:
+  - Repair only the log-identified internal pointer or interface construct while preserving
+    the header-declared top signature
+  forbidden_actions:
+  - Do not react to informational interface or port text
+  - Do not alter the top signature or add pointer arithmetic
+  must_hold_invariants:
+  - Testbench interface compatibility and all previously passed functional behavior
+    are preserved
+  confidence: high
+  source: Exact Vitis HLS ERROR/WARNING evidence plus AMD UG1399 Pointer Limitations
+  evidence_tier: generic
+- rule_id: SYNTH_INVALID_HLS_PRAGMA
+  stage: synth
+  priority: 147
+  match:
+    log_any:
+    - invalid pragma
+    - pragma.*(?:error|invalid|conflict)
+    - directive.*(?:conflict|invalid|unsupported)
+    code_any:
+    - '#\s*pragma\s+HLS'
+  diagnosis: A specific illegal or contradictory HLS pragma blocks synthesis.
+  allowed_actions:
+  - Repair or remove only the log-identified illegal pragma
+  forbidden_actions:
+  - Do not introduce PIPELINE, UNROLL, DATAFLOW, PARTITION, or other QoR directives
+    for candidate selection
+  must_hold_invariants:
+  - C-sim behavior and interface semantics remain unchanged
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_GENERIC
+  stage: synth
+  priority: 1
+  match:
+    fallback: true
+  diagnosis: The function passes parsing/C-sim but Vitis HLS cannot synthesize it.
+  allowed_actions:
+  - Replace the first unsupported construct with a fixed, bounded functional equivalent
+  forbidden_actions:
+  - Do not optimize QoR or change functionality
+  must_hold_invariants:
+  - The repaired candidate must still pass the immutable testbench
+  evidence_tier: generic
+  source: public evidence
+- rule_id: PARSE_HISTORY_FRONTIER_GUARD
+  stage: parse
+  priority: 168
+  routing_channel: trajectory_frontier_guard
+  routing_status: reserved_inactive
+  routing_reason: Audited archive/frontier constraint reserved until a separate non-candidate
+    guard executor is validated; never competes for Diagnoser top-1
+  match:
+    history_any:
+    - '"recovery_count": [1-9]'
+    - '"component_regression": true'
+  diagnosis: A later attempt regressed below a previously parsed candidate.
+  allowed_actions:
+  - Re-emit a complete single-file candidate while preserving the best prior output
+    contract
+  forbidden_actions:
+  - Do not repeat the formatting strategy that caused regression
+  must_hold_invariants:
+  - The recovered best Parse frontier must not be lost
+  evidence_tier: generic
+  source: public evidence
+- rule_id: COMPILE_HISTORY_FRONTIER_GUARD
+  stage: compile
+  priority: 168
+  routing_channel: trajectory_frontier_guard
+  routing_status: reserved_inactive
+  routing_reason: Audited archive/frontier constraint reserved until a separate non-candidate
+    guard executor is validated; never competes for Diagnoser top-1
+  match:
+    history_any:
+    - '"recovery_count": [1-9]'
+    - '"component_regression": true'
+  diagnosis: A later repair lost a Compile property that an earlier candidate had
+    already achieved.
+  allowed_actions:
+  - Repair from the archived best candidate and preserve its exact include/signature/type
+    contract
+  forbidden_actions:
+  - Do not reintroduce an already eliminated compiler error
+  must_hold_invariants:
+  - All stages true in the archived frontier remain true
+  evidence_tier: generic
+  source: public evidence
+- rule_id: TB_HISTORY_FRONTIER_GUARD
+  stage: tb
+  priority: 168
+  routing_channel: trajectory_frontier_guard
+  routing_status: reserved_inactive
+  routing_reason: Audited archive/frontier constraint reserved until a separate non-candidate
+    guard executor is validated; never competes for Diagnoser top-1
+  match:
+    history_any:
+    - '"recovery_count": [1-9]'
+    - '"component_regression": true'
+  diagnosis: A later semantic edit regressed below an earlier Compile/TB frontier.
+  allowed_actions:
+  - Use the archived best candidate as the repair base and change only the unresolved
+    semantic cause
+  forbidden_actions:
+  - Do not discard previously correct initialization, bounds, indexing, or output
+    writes
+  must_hold_invariants:
+  - Previously passed Parse, Compile, and TB properties remain intact
+  evidence_tier: generic
+  source: public evidence
+- rule_id: SYNTH_HISTORY_FRONTIER_GUARD
+  stage: synth
+  priority: 168
+  routing_channel: trajectory_frontier_guard
+  routing_status: reserved_inactive
+  routing_reason: Audited archive/frontier constraint reserved until a separate non-candidate
+    guard executor is validated; never competes for Diagnoser top-1
+  match:
+    history_any:
+    - '"recovery_count": [1-9]'
+    - '"component_regression": true'
+  diagnosis: A synthesis repair regressed functional or compilation properties already
+    achieved.
+  allowed_actions:
+  - Apply a bounded synthesizability repair to the archived best functional candidate
+  forbidden_actions:
+  - Do not remove required computation or weaken the testbench-visible result
+  must_hold_invariants:
+  - Previously passed Parse, Compile, and TB stages remain true
+  evidence_tier: generic
+  source: public evidence
+retrieval_policy:
+  top_k: 1
+  conflict_precedence:
+  - exact_public_top_abi
+  - immutable_interface
+  - exact_negative_evidence
+  - exact_tool_error
+  - exact_code_or_header_feature
+  - general_hls_compatibility
+  - tb_semantic_hypothesis
+  global_veto:
+  - Never modify headers, testbenches, data files, fixed dimensions, or the top-function
+    algorithm; only a selected compile-signature rule may restore the existing top
+    declaration to an exact linker-reported public ABI
+  - Never retrieve or prompt the reference kernel
+  - Never use QoR to choose a candidate
+  fallback_policy: abstain_to_feedback
+  specificity_policy: Alternatives inside one any-clause count as one broad condition;
+    exact negative evidence is prioritized
+  cleanroom_authorization_policy: STAGNATION_CLEANROOM rules are action-side and excluded
+    before Diagnoser top-k ranking
+  promotion_policy: Short-memory reflections remain trajectory-local and are never
+    written back into frozen Long memory
+  stage_frontier_policy: Diagnose and repair only the earliest failed Parse-Compile-TB-Synth
+    stage; preserve every already-passed stage
+  evidence_contract:
+  - Every selected rule must cite a concrete log, code, immutable-header, or trajectory-state
+    observation
+  - Exact negative evidence and compiler identifiers outrank broad lexical hypotheses
+  - A contradicted Short-memory root cause or repeated failed action cannot be reused
+    without new evidence
+  action_contract:
+  - Deterministic operators require a high-confidence authorized rule plus precondition
+    and postcondition checks
+  - An operator no-op is not a candidate and falls back to one Repairer call
+  - Every candidate must pass a complete independent Reviewer; no cross-round TB/Synth
+    composition is allowed
+  minimum_authorization_score: 0.58
+  minimum_runner_up_margin: 0.04
+  independent_evidence_policy: Primary reusable contracts require evidence from the
+    public task, generated candidate, derived facts, or Vitis log; dataset labels
+    and problem IDs are forbidden.
+  empirical_quarantine_policy: Rules selected at least 20 times with zero success
+    or below 5% progress receive deterministic reliability penalties.
+evidence_tier_counts:
+  generic: 60
+  algorithm_specific: 0
+  exact_task_contract: 0
+rules_sha256: 491c658d6d5ae82d93ae7547f64ec38b7641ea2d606c88041386a9783d1c4bf0

@@ -1,0 +1,52 @@
+schema_version: dac-test-mementohls-1
+benchmark_status: test-informed development benchmark
+dataset:
+  kind: bench4hls
+  root: /home/xjzhu/HLS/DAC_test/datasets/Bench4HLS/benchmark
+  case_count: 170
+  suites: [bench4hls_test]
+model:
+  path: /mnt/sdb/llm_models/Meta-Llama-3-8B-Instruct
+  served_name: meta-llama/Llama-3-8b-chat-hf
+  temperature: 0.7
+  context_limit: 8192
+  maximum_completion_tokens: 4096
+trajectories:
+  samples: 5
+  seeds: [0, 1, 2, 3, 4]
+  maximum_repair_rounds: 5
+reviewer:
+  vitis: 2024.2
+  fpga_part: xczu9eg-ffvb1156-2-e
+  clock_ns: 5.0
+  flow_target: vivado
+  success: same_candidate_tb_and_synth
+  timeouts_seconds: {llm: 600, csim: 360, synth: 360}
+workers: {design: 16, llm: 8, csim: 12, synth: 8}
+resource_profile:
+  name: coexistence16-bounded
+  nice: 10
+  ionice_class: 2
+  ionice_level: 7
+  start_gate: {cpu_percent_lt: 45, load1_lt: 96, memory_available_gib_gt: 380, stable_seconds: 300}
+  pause_ceiling: {cpu_percent_gt: 70, load1_gt: 120, memory_available_gib_lt: 350}
+  experiment_caps: {logical_cpus: 80, rss_gib: 300, vitis_threads_per_task: 2}
+  prevalidated_window: {enabled: true, max_age_seconds: 600, current_ceiling_recheck: true}
+  evidence: /home/xjzhu/HLS/DAC_test/baseline_evidence/vitis_coexistence_probe/probe.json
+statistics:
+  bootstrap_iterations: 10000
+  seed: 2027
+  permutation_iterations: 10000
+  multiple_comparison: Holm
+modes:
+  - zero_shot
+  - feedback
+  - rfl
+  - ercl
+  - mementohls
+  - mementohls_core_rules
+  - mementohls_all_rules
+primary_metrics: [tb_and_synth_p@1, tb_and_synth_p@5]
+optimization_goal:
+  minimum_percentage_points_over_zero_shot: 15
+  scientific_policy: report every failed ordering and CI; optimize only in a new hashed development iteration
