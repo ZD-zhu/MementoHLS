@@ -28,13 +28,13 @@ This repository is the consolidated code release corresponding to the MementoHLS
 
 ```text
 mementohls/
-??? main.py                 # Main CLI and experiment orchestration entry point
-??? configs/                # HLS-Eval, Bench4HLS, and shared configurations
-??? memorybank/             # Active ERCL long-term rule banks
-??? scripts/                # Run, deployment, validation, and analysis utilities
-??? src/mementohls/         # Core MementoHLS implementation
-??? pyproject.toml          # Python package metadata
-??? requirements.txt        # Runtime Python dependencies
+   main.py                 # Main CLI and experiment orchestration entry point
+   configs/                # HLS-Eval, Bench4HLS, and shared configurations
+   memorybank/             # Active ERCL long-term rule banks
+   scripts/                # Run, deployment, validation, and analysis utilities
+   src/mementohls/         # Core MementoHLS implementation
+   pyproject.toml          # Python package metadata
+   requirements.txt        # Runtime Python dependencies
 ```
 
 Important implementation modules include:
@@ -87,7 +87,3 @@ python main.py \
 ```
 
 Use `configs/` and `scripts/` for the frozen paper-style settings, deployment binding, resource gates, and validation workflow. Generated outputs should remain outside the source tree.
-
-## Scope of this release
-
-The consolidated implementation uses the most recent and most complete v3.19/P5 code line as the canonical version. The DAC_test tree was used to verify the development lineage, and the DAC2027 tree was used to verify the paper-facing implementation. DAC2027 contains no Python module absent from the canonical implementation; its differing modules are earlier revisions of components retained here.
